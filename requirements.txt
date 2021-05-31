@@ -79,6 +79,7 @@ six==1.15.0
 sympy==1.8
 terminado==0.9.4
 testpath==0.4.4
+torch==1.8.1
 tornado==6.1
 traitlets==5.0.5
 typing-extensions==3.7.4.3
