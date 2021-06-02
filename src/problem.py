@@ -1,4 +1,5 @@
 import pdb
+import mosek
 import gurobipy
 import numpy as np
 import cvxpy as cp
@@ -81,7 +82,12 @@ class Problem():
         for pp in params:
             self.bin_prob_params[pp].value = params[pp]
 
+        # grb_param_dict = {}
+        # grb_param_dict['Presolve'] = 0
+        # grb_param_dict['Threads'] = 1
+
         prob_success, cost, solve_time, optvals = False, np.Inf, np.Inf, None
+        # self.bin_prob.solve(solver=solver, **grb_param_dict)
         self.bin_prob.solve(solver=solver)
 
         if self.bin_prob.status in ['optimal', 'optimal_inaccurate'] and self.bin_prob.status not in ['infeasible', 'unbounded']:

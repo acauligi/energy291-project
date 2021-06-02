@@ -1,3 +1,4 @@
+import pdb
 import os
 import cvxpy as cp
 import pickle
@@ -16,7 +17,7 @@ from datetime import datetime
 from pytorch.models import FFNet
 
 class CoCo():
-    def __init__(self, system, problem, prob_features, n_evals=10):
+    def __init__(self, system, problem, prob_features, n_evals=1):
         """Constructor for CoCo class.
 
         Args:
@@ -65,7 +66,7 @@ class CoCo():
 
         for ii in range(num_probs):
             # TODO(acauligi): check if transpose necessary with new pickle save format for Y
-            y_true = np.reshape(self.Y[ii,:], (self.n_y))
+            y_true = np.reshape(self.Y[ii], (self.n_y))
 
             if tuple(y_true) not in self.strategy_dict.keys():
                 self.strategy_dict[tuple(y_true)] = np.hstack((self.n_strategies,np.copy(y_true)))
@@ -175,12 +176,13 @@ class CoCo():
 
         print('Done training')
 
-    def forward(self, prob_params, solver=cp.MOSEK):
+    def forward(self, prob_params, solver=cp.GUROBI):
         features = self.problem.construct_features(prob_params, self.prob_features)
         inpt = Variable(torch.from_numpy(features)).float().to(device=self.device)
         t0 = time.time()
         scores = self.model(inpt).cpu().detach().numpy()[:]
-        torch.cuda.synchronize()
+        if  torch.device.type == 'cpu': 
+            torch.cuda.synchronize()
         total_time = time.time()-t0
         ind_max = np.argsort(scores)[-self.n_evals:][::-1]
 
@@ -196,17 +198,17 @@ class CoCo():
                     y_guesses[ii] = label[1:]
                     break
 
-        prob_success, cost, n_evals, optvals = False, np.Inf, len(y_guesses), None
+        prob_success, cost, n_evals = False, np.Inf, len(y_guesses)
         for ii,idx in enumerate(ind_max):
             y_guess = y_guesses[ii]
 
             # weirdly need to reshape in reverse order of cvxpy variable shape
-            y_guess = np.reshape(y_guess, self.y_shape)
+            y_guess = np.round(np.reshape(y_guess, self.y_shape))
 
-            prob_success, cost, solve_time, optvals = self.problem.solve_pinned(prob_params, y_guess, solver)
+            prob_success, cost, solve_time = self.problem.solve_coco_problem(prob_params, y_guess, solver)
 
             total_time += solve_time
             n_evals = ii+1
             if prob_success:
                 break
-        return prob_success, cost, total_time, n_evals, optvals
+        return prob_success, cost, total_time, n_evals
