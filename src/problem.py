@@ -1,3 +1,4 @@
+import pdb
 import gurobipy
 import numpy as np
 import cvxpy as cp
@@ -78,10 +79,7 @@ class Problem():
     def solve_bin_problem(self, params, solver=cp.GUROBI):
         # Set cvxpy parameters to their values
         for pp in params:
-            try:
-                self.bin_prob_params[pp].value = params[pp]
-            except:
-                pdb.set_trace()
+            self.bin_prob_params[pp].value = params[pp]
 
         prob_success, cost, solve_time, optvals = False, np.Inf, np.Inf, None
         self.bin_prob.solve(solver=solver)
@@ -180,3 +178,12 @@ class Problem():
             self.coco_prob_params[pp].value = None
 
         return prob_success, cost, solve_time
+
+    def construct_features(self, params, prob_features):
+        feature_vec = np.array([], dtype=float)
+        for feature in prob_features:
+            if feature in ['supply', 'hour_ahead_forecast']:
+                feature_vec = np.hstack((feature_vec, params[feature].flatten()))
+            elif feature in ['initial_storage_MW', 'max_sources']:
+                feature_vec = np.hstack((feature_vec, params[feature]))
+        return feature_vec
