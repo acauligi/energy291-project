@@ -82,13 +82,21 @@ class Problem():
         for pp in params:
             self.bin_prob_params[pp].value = params[pp]
 
-        # grb_param_dict = {}
-        # grb_param_dict['Presolve'] = 0
-        # grb_param_dict['Threads'] = 1
-
         prob_success, cost, solve_time, optvals = False, np.Inf, np.Inf, None
-        # self.bin_prob.solve(solver=solver, **grb_param_dict)
-        self.bin_prob.solve(solver=solver)
+        if solver == cp.GUROBI:
+            grb_param_dict = {}
+            # grb_param_dict['Presolve'] = 0
+            # grb_param_dict['Threads'] = 1
+
+            self.bin_prob.solve(solver=solver, **grb_param_dict)
+        elif solver == cp.MOSEK:
+            msk_param_dict = {}
+            # msk_param_dict['MSK_IPAR_PRESOLVE_USE'] = 0
+            # msk_param_dict['MSK_IPAR_NUM_THREADS'] = 1
+            self.bin_prob.solve(solver=solver, mosek_params=msk_param_dict)
+        else:
+            print('{} not supported!\n'.format(solver))
+            return prob_success, cost, solve_time, optvals
 
         if self.bin_prob.status in ['optimal', 'optimal_inaccurate'] and self.bin_prob.status not in ['infeasible', 'unbounded']:
             prob_success = True
@@ -119,7 +127,7 @@ class Problem():
         max_sources = cp.Parameter()
         supply = cp.Parameter((self.n_sources, self.N))
         hour_ahead_forecast = cp.Parameter((self.N))
-        y = cp.Variable((self.n_sources, self.N), boolean=True)
+        y = cp.Parameter((self.n_sources, self.N))
 
         self.coco_prob_params = {}
         self.coco_prob_params['initial_storage_MW'] = initial_storage_MW
@@ -177,7 +185,7 @@ class Problem():
         if self.coco_prob.status in ['optimal', 'optimal_inaccurate'] and self.coco_prob.status not in ['infeasible', 'unbounded']:
             prob_success = True
             cost = self.coco_prob.value
-        solve_time = self.bin_prob.solver_stats.solve_time
+        solve_time = self.coco_prob.solver_stats.solve_time
 
         # Clear any saved params
         for pp in self.coco_prob_params:
